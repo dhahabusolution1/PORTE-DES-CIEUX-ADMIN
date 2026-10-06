@@ -158,7 +158,7 @@ export function DepartementsPage() {
         </button>
       </div>
 
-      <DataTable columns={columns} data={departements} isLoading={loading} />
+      <DataTable trashType="DEPARTEMENT" columns={columns} data={departements} isLoading={loading} />
 
       <ConfirmModal
         isOpen={!!toDelete}

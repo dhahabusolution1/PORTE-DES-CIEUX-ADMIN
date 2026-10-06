@@ -198,8 +198,9 @@ export function CitationsPage() {
         </Button>
       </div>
 
-      <div className="bg-surface rounded-lg border border-accent-200 overflow-hidden">
+      <div className="bg-white rounded-lg border border-accent-200 overflow-hidden">
         <DataTable
+          trashType="CITATION"
           columns={columns}
           data={data?.getCitations.items ?? []}
           isLoading={loading}
@@ -214,7 +215,7 @@ export function CitationsPage() {
       <ConfirmModal
         isOpen={!!toDelete}
         title="Supprimer cette citation"
-        message="Voulez-vous supprimer cette citation ? L'image sera retirée de la galerie."
+        message="Placer cette citation dans la corbeille ? Elle pourra être restaurée avec son image."
         confirmLabel="Supprimer"
         onConfirm={() => void handleSupprimer()}
         onCancel={() => setToDelete(null)}

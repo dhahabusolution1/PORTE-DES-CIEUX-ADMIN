@@ -130,6 +130,7 @@ export interface Culte {
   lienYoutube?: string;
   miniatureUrl?: string;
   statut: StatutCulte;
+  finDirectAt?: string | null;
   createdAt: string;
 }
 

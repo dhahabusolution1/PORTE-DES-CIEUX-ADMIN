@@ -314,8 +314,9 @@ export function BookshopPage() {
         placeholder="Rechercher par titre ou auteur…"
       />
 
-      <div className="bg-surface rounded-lg border border-accent-200 overflow-hidden">
+      <div className="bg-white rounded-lg border border-accent-200 overflow-hidden">
         <DataTable
+          trashType="ARTICLE"
           columns={columns}
           data={data?.getArticlesAdmin.items ?? []}
           isLoading={loading}
@@ -330,7 +331,7 @@ export function BookshopPage() {
       <ConfirmModal
         isOpen={!!toDelete}
         title="Supprimer cet article"
-        message={`Voulez-vous supprimer « ${toDelete?.titre} » ? Cette action est irréversible.`}
+        message={`Mettre « ${toDelete?.titre} » à la corbeille ? Cet article pourra être restauré.`}
         confirmLabel="Supprimer"
         onConfirm={() => void handleSupprimer()}
         onCancel={() => setToDelete(null)}

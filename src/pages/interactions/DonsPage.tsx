@@ -1,19 +1,25 @@
 import { useState, useMemo } from 'react';
-import { useQuery } from '@apollo/client/react';
-import { Eye, Download, Gift, X, MessageSquare } from 'lucide-react';
+import { useQuery, useMutation } from '@apollo/client/react';
+import { Eye, Download, Gift, X, MessageSquare, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import type { ColumnDef, RowSelectionState } from '@tanstack/react-table';
 import * as XLSX from 'xlsx';
 
 import { GET_DONS_ADMIN, GET_DON_BY_ID } from '@/graphql/queries/dons.queries';
+import { SUPPRIMER_DON } from '@/graphql/mutations/interactions.mutations';
 import { DataTable } from '@/components/ui/DataTable';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { Button } from '@/components/ui/Button';
+import { ConfirmModal } from '@/components/ui/ConfirmModal';
 import { WhatsAppButton } from '@/components/ui/WhatsAppButton';
+import { useProcessing } from '@/hooks/useProcessing';
 import { formatDate } from '@/utils/formatDate';
 import type { DonTransaction, StatutDon } from '@/types';
 
 const LIMIT = 20;
+
+/** Suppression proposée une fois le don hors simple attente (suivi / nettoyage). */
+const STATUTS_DON_SUPPRIMABLES: StatutDon[] = ['EN_COURS', 'REUSSI', 'ECHEC', 'ANNULE'];
 
 const STATUTS: { value: StatutDon; label: string }[] = [
   { value: 'EN_ATTENTE', label: 'En attente' },
@@ -129,9 +135,11 @@ export function DonsPage() {
   const [offset, setOffset] = useState(0);
   const [filterStatut, setFilterStatut] = useState('');
   const [detailId, setDetailId] = useState<string | null>(null);
+  const [toDelete, setToDelete] = useState<DonTransaction | null>(null);
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
+  const { run } = useProcessing();
 
-  const { data, loading } = useQuery<DonsData>(GET_DONS_ADMIN, {
+  const { data, loading, refetch } = useQuery<DonsData>(GET_DONS_ADMIN, {
     variables: {
       statut: filterStatut || undefined,
       limit: LIMIT,
@@ -139,6 +147,8 @@ export function DonsPage() {
     },
     fetchPolicy: 'cache-and-network',
   });
+
+  const [supprimerDon] = useMutation(SUPPRIMER_DON);
 
   const dons = useMemo(() => data?.getDonsAdmin.items ?? [], [data]);
   const total = data?.getDonsAdmin.totalCount ?? 0;
@@ -149,13 +159,28 @@ export function DonsPage() {
     return { reussisPage: reussis.length, totalPage };
   }, [dons]);
 
+  const confirmDelete = async () => {
+    if (!toDelete) return;
+    await run('Suppression du don…', async () => {
+      try {
+        await supprimerDon({ variables: { id: toDelete.id } });
+        toast.success('Don supprimé');
+        setToDelete(null);
+        if (detailId === toDelete.id) setDetailId(null);
+        void refetch();
+      } catch {
+        toast.error('Erreur lors de la suppression');
+      }
+    });
+  };
+
   const exportExcel = () => {
-    const selectedIndexes = Object.keys(rowSelection).map(Number);
-    if (selectedIndexes.length === 0) {
+    const selectedIds = new Set(Object.keys(rowSelection).filter((id) => rowSelection[id]));
+    if (selectedIds.size === 0) {
       toast.error('Veuillez sélectionner au moins une ligne à exporter.');
       return;
     }
-    const selectedRows = selectedIndexes.map((idx) => dons[idx]).filter(Boolean);
+    const selectedRows = dons.filter((don) => selectedIds.has(don.id));
 
     const exportData = selectedRows.map((d) => ({
       Date: formatDate(d.createdAt),
@@ -269,6 +294,17 @@ export function DonsPage() {
                 <MessageSquare size={11} />
               </a>
             )}
+            {STATUTS_DON_SUPPRIMABLES.includes(row.original.statut) && (
+              <Button
+                variant="danger"
+                size="sm"
+                iconOnly
+                title="Supprimer"
+                onClick={() => setToDelete(row.original)}
+              >
+                <Trash2 size={14} />
+              </Button>
+            )}
           </div>
         );
       },
@@ -333,6 +369,7 @@ export function DonsPage() {
       </div>
 
       <DataTable
+        trashType="DON"
         columns={columns}
         data={dons}
         isLoading={loading}
@@ -349,6 +386,16 @@ export function DonsPage() {
       {detailId && (
         <DonDetailModal donId={detailId} onClose={() => setDetailId(null)} />
       )}
+
+      <ConfirmModal
+        isOpen={!!toDelete}
+        title="Supprimer ce don"
+        message={`Mettre le don ${toDelete?.reference ?? ''} à la corbeille ? La transaction sera conservée.`}
+        confirmLabel="Supprimer"
+        danger
+        onConfirm={() => void confirmDelete()}
+        onCancel={() => setToDelete(null)}
+      />
     </div>
   );
 }

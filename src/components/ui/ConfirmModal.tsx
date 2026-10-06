@@ -9,6 +9,7 @@ interface ConfirmModalProps {
   onConfirm: () => void;
   onCancel: () => void;
   danger?: boolean;
+  isProcessing?: boolean;
   /** Champ texte optionnel (ex. raison d'annulation). */
   input?: {
     label: string;
@@ -29,6 +30,7 @@ export function ConfirmModal({
   onConfirm,
   onCancel,
   danger = true,
+  isProcessing = false,
   input,
 }: ConfirmModalProps) {
   if (!isOpen) return null;
@@ -66,13 +68,14 @@ export function ConfirmModal({
         <div className="flex justify-end gap-2">
           <button
             onClick={onCancel}
-            className="px-3 py-1.5 text-xs border border-accent-200 rounded text-accent-700 hover:bg-accent-50 cursor-pointer"
+            disabled={isProcessing}
+            className="px-3 py-1.5 text-xs border border-accent-200 rounded text-accent-700 hover:bg-accent-50 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {cancelLabel}
           </button>
           <button
             onClick={onConfirm}
-            disabled={inputInvalid}
+            disabled={inputInvalid || isProcessing}
             className={`px-3 py-1.5 text-xs rounded text-white cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
               danger ? 'bg-danger hover:bg-red-600' : 'bg-primary-500 hover:bg-primary-600'
             }`}

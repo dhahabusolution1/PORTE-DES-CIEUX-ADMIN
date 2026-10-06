@@ -65,3 +65,21 @@ export const REPONDRE_REQUETE = gql`
     }
   }
 `;
+
+export const SUPPRIMER_RENDEZVOUS = gql`
+  mutation SupprimerRendezVous($id: ID!) {
+    supprimerRendezVous(id: $id)
+  }
+`;
+
+export const SUPPRIMER_REQUETE = gql`
+  mutation SupprimerRequete($id: ID!) {
+    supprimerRequete(id: $id)
+  }
+`;
+
+export const SUPPRIMER_DON = gql`
+  mutation SupprimerDon($id: ID!) {
+    supprimerDon(id: $id)
+  }
+`;

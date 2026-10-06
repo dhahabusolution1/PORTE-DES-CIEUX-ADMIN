@@ -1,18 +1,21 @@
 import { useState, useMemo } from 'react';
 import { useQuery, useMutation } from '@apollo/client/react';
-import { Calendar, ChevronDown, Download } from 'lucide-react';
+import { Calendar, ChevronDown, Download, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import type { ColumnDef, RowSelectionState } from '@tanstack/react-table';
 import * as XLSX from 'xlsx';
 
 import { GET_RENDEZVOUS } from '@/graphql/queries/interactions.queries';
-import { UPDATE_STATUT_RENDEZVOUS } from '@/graphql/mutations/interactions.mutations';
+import { UPDATE_STATUT_RENDEZVOUS, SUPPRIMER_RENDEZVOUS } from '@/graphql/mutations/interactions.mutations';
 import { DataTable } from '@/components/ui/DataTable';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { ConfirmModal } from '@/components/ui/ConfirmModal';
 import { Button } from '@/components/ui/Button';
 import { useProcessing } from '@/hooks/useProcessing';
 import type { RendezVous, StatutRendezVous } from '@/types';
+
+/** Statuts pour lesquels la suppression admin est proposée (suivi après confirmation). */
+const STATUTS_SUPPRIMABLES: StatutRendezVous[] = ['CONFIRME', 'EFFECTUE', 'ANNULE'];
 
 const LIMIT = 20;
 
@@ -67,6 +70,7 @@ export function RendezVousPage() {
   const [dateDebut, setDateDebut] = useState('');
   const [dateFin, setDateFin] = useState('');
   const [confirmAction, setConfirmAction] = useState<{ id: string; statut: StatutRendezVous; label: string } | null>(null);
+  const [toDelete, setToDelete] = useState<RendezVous | null>(null);
   const [motifAnnulation, setMotifAnnulation] = useState('');
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const { run } = useProcessing();
@@ -83,6 +87,7 @@ export function RendezVousPage() {
   });
 
   const [updateStatut] = useMutation(UPDATE_STATUT_RENDEZVOUS);
+  const [supprimerRendezVous] = useMutation(SUPPRIMER_RENDEZVOUS);
 
   const rdvs = useMemo(() => data?.getRendezVous ?? [], [data]);
 
@@ -119,13 +124,27 @@ export function RendezVousPage() {
     });
   };
 
+  const confirmDelete = async () => {
+    if (!toDelete) return;
+    await run('Suppression du rendez-vous…', async () => {
+      try {
+        await supprimerRendezVous({ variables: { id: toDelete.id } });
+        toast.success('Rendez-vous supprimé');
+        setToDelete(null);
+        void refetch();
+      } catch {
+        toast.error('Erreur lors de la suppression');
+      }
+    });
+  };
+
   const exportExcel = () => {
-    const selectedIndexes = Object.keys(rowSelection).map(Number);
-    if (selectedIndexes.length === 0) {
+    const selectedIds = new Set(Object.keys(rowSelection).filter((id) => rowSelection[id]));
+    if (selectedIds.size === 0) {
       toast.error('Veuillez sélectionner au moins une ligne à exporter.');
       return;
     }
-    const selectedRows = selectedIndexes.map(idx => rdvs[idx]).filter(Boolean);
+    const selectedRows = rdvs.filter((rdv) => selectedIds.has(rdv.id));
 
     const exportData = selectedRows.map(r => {
       const nom = r.user ? [r.user.prenom, r.user.nom].filter(Boolean).join(' ') : [r.prenomVisiteur, r.nomVisiteur].filter(Boolean).join(' ');
@@ -235,6 +254,24 @@ export function RendezVousPage() {
         <StatutDropdown rdv={row.original} onUpdate={handleUpdate} />
       ),
     },
+    {
+      header: 'Actions',
+      id: 'actions',
+      cell: ({ row }) => {
+        if (!STATUTS_SUPPRIMABLES.includes(row.original.statut)) return null;
+        return (
+          <Button
+            variant="danger"
+            size="sm"
+            iconOnly
+            title="Supprimer"
+            onClick={() => setToDelete(row.original)}
+          >
+            <Trash2 size={14} />
+          </Button>
+        );
+      },
+    },
   ], []);
 
   return (
@@ -281,6 +318,7 @@ export function RendezVousPage() {
       </div>
 
       <DataTable
+        trashType="RENDEZ_VOUS"
         columns={columns}
         data={rdvs}
         isLoading={loading}
@@ -321,6 +359,16 @@ export function RendezVousPage() {
           setConfirmAction(null);
           setMotifAnnulation('');
         }}
+      />
+
+      <ConfirmModal
+        isOpen={!!toDelete}
+        title="Supprimer ce rendez-vous"
+        message={`Mettre le rendez-vous du ${toDelete?.date ?? ''} à ${toDelete?.heure ?? ''} à la corbeille ? Son créneau restera réservé.`}
+        confirmLabel="Supprimer"
+        danger
+        onConfirm={() => void confirmDelete()}
+        onCancel={() => setToDelete(null)}
       />
     </div>
   );

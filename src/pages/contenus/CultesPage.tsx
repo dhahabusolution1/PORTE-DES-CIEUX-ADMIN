@@ -1,13 +1,14 @@
 import { useState } from 'react';
 import { useQuery, useMutation } from '@apollo/client/react';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod/v4';
-import { Plus, Pencil, Trash2, PlaySquare, Radio, Calendar, ListFilter, ExternalLink } from 'lucide-react';
+import { Plus, Pencil, Trash2, PlaySquare, Radio, Calendar, ListFilter, ExternalLink, Square } from 'lucide-react';
 import toast from 'react-hot-toast';
 import type { ColumnDef } from '@tanstack/react-table';
 import { useDebounce } from '@/hooks/useDebounce';
-import { SearchInput } from '@/components/ui/SearchInput';import { GET_CULTES } from '@/graphql/queries/contenu.queries';
+import { SearchInput } from '@/components/ui/SearchInput';
+import { GET_CULTES } from '@/graphql/queries/contenu.queries';
 import { CREER_CULTE, MODIFIER_CULTE, SUPPRIMER_CULTE } from '@/graphql/mutations/contenu.mutations';
 import { DataTable } from '@/components/ui/DataTable';
 import { StatusBadge } from '@/components/ui/StatusBadge';
@@ -36,6 +37,12 @@ const STATUT_OPTIONS = [
   { value: 'REDIFFUSION', label: 'Rediffusion' },
 ];
 
+function toLocalDateTime(value: string): string {
+  const date = new Date(value);
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+  return local.toISOString().slice(0, 16);
+}
+
 const culteSchema = z.object({
   titre: z.string().min(1, 'Titre requis'),
   description: z.string().optional(),
@@ -43,6 +50,10 @@ const culteSchema = z.object({
   date: z.string().min(1, 'Date requise'),
   lienYoutube: z.string().url('Lien YouTube invalide').optional().or(z.literal('')),
   statut: z.enum(['PLANIFIE', 'EN_DIRECT', 'REDIFFUSION']),
+  finDirectAt: z.string().optional(),
+}).refine((value) => !value.finDirectAt || value.statut !== 'EN_DIRECT' || new Date(value.finDirectAt).getTime() > Date.now(), {
+  message: 'Choisissez une heure de fin future',
+  path: ['finDirectAt'],
 });
 
 type CulteForm = z.infer<typeof culteSchema>;
@@ -63,6 +74,7 @@ export function CultesPage() {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Culte | null>(null);
   const [toDelete, setToDelete] = useState<Culte | null>(null);
+  const [toEnd, setToEnd] = useState<Culte | null>(null);
 
   const { run } = useProcessing();
 
@@ -75,6 +87,7 @@ export function CultesPage() {
       offset,
     },
     fetchPolicy: 'cache-and-network',
+    pollInterval: 60_000,
   });
 
   const [creerCulte] = useMutation(CREER_CULTE);
@@ -85,11 +98,13 @@ export function CultesPage() {
     register,
     handleSubmit,
     reset,
+    control,
     formState: { errors, isSubmitting },
   } = useForm<CulteForm>({
     resolver: zodResolver(culteSchema),
     defaultValues: { type: 'DIMANCHE', statut: 'PLANIFIE' },
   });
+  const selectedStatut = useWatch({ control, name: 'statut' });
 
   const openForm = (c?: Culte) => {
     if (c) {
@@ -101,6 +116,7 @@ export function CultesPage() {
         date: c.date.substring(0, 10),
         lienYoutube: c.lienYoutube || '',
         statut: c.statut as CulteForm['statut'],
+        finDirectAt: c.finDirectAt ? toLocalDateTime(c.finDirectAt) : '',
       });
     } else {
       setEditing(null);
@@ -111,6 +127,7 @@ export function CultesPage() {
         date: new Date().toISOString().substring(0, 10),
         lienYoutube: '',
         statut: 'PLANIFIE',
+        finDirectAt: '',
       });
     }
     setShowForm(true);
@@ -122,27 +139,37 @@ export function CultesPage() {
   };
 
   const onSubmit = async (values: CulteForm) => {
-    await run('Enregistrement du culte...', async () => {
-      try {
-        const input = {
-          ...values,
-          date: new Date(values.date).toISOString(),
-          lienYoutube: values.lienYoutube || null,
-        };
-
-        if (editing) {
-          await modifierCulte({ variables: { id: editing.id, ...input } });
-          toast.success('Culte mis à jour');
-        } else {
-          await creerCulte({ variables: input });
-          toast.success('Culte enregistré');
-        }
-        closeForm();
-        refetch();
-      } catch {
-        toast.error('Erreur lors de l\'enregistrement');
+    const result = await run('Enregistrement du culte...', async () => {
+      const input = {
+        ...values,
+        date: new Date(values.date).toISOString(),
+        lienYoutube: values.lienYoutube || null,
+        finDirectAt: values.statut === 'EN_DIRECT' && values.finDirectAt
+          ? new Date(values.finDirectAt).toISOString()
+          : null,
+      };
+      if (editing) {
+        await modifierCulte({ variables: { id: editing.id, ...input } });
+      } else {
+        await creerCulte({ variables: input });
       }
-    });
+      return true;
+    }, { successMessage: editing ? 'Culte mis à jour' : 'Culte enregistré' });
+    if (result) {
+      closeForm();
+      void refetch();
+    }
+  };
+  const handleTerminerDirect = async () => {
+    if (!toEnd) return;
+    const culte = toEnd;
+    const result = await run('Fin du direct...', () =>
+      modifierCulte({ variables: { id: culte.id, statut: 'REDIFFUSION', finDirectAt: null } }),
+    );
+    if (result) {
+      setToEnd(null);
+      void refetch();
+    }
   };
 
   const handleSupprimer = async () => {
@@ -189,9 +216,16 @@ export function CultesPage() {
       accessorKey: 'date',
       header: 'Diffusion',
       cell: ({ row }) => (
-        <div className="flex items-center gap-1.5 text-[11px] font-bold text-accent-500">
-          <Calendar size={12} className="text-accent-300" />
-          {formatDate(row.original.date)}
+        <div className="text-[11px] font-bold text-accent-500">
+          <div className="flex items-center gap-1.5">
+            <Calendar size={12} className="text-accent-300" />
+            {formatDate(row.original.date)}
+          </div>
+          {row.original.statut === 'EN_DIRECT' && row.original.finDirectAt && (
+            <div className="mt-1 text-red-500">
+              Fin prévue : {new Date(row.original.finDirectAt).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}
+            </div>
+          )}
         </div>
       ),
     },
@@ -205,6 +239,17 @@ export function CultesPage() {
       header: 'Actions',
       cell: ({ row }) => (
         <div className="flex gap-1.5">
+          {row.original.statut === 'EN_DIRECT' && (
+            <Button
+              variant="outline"
+              size="sm"
+              iconOnly
+              title="Terminer le direct"
+              onClick={() => setToEnd(row.original)}
+            >
+              <Square size={14} className="text-red-500" />
+            </Button>
+          )}
           {row.original.lienYoutube && (
             <Button 
               variant="outline" 
@@ -255,7 +300,7 @@ export function CultesPage() {
         </Button>
       </div>
 
-      <div className="flex flex-wrap items-center gap-4 bg-surface p-3 border border-accent-200 rounded-lg">
+      <div className="flex flex-wrap items-center gap-4 bg-white p-3 border border-accent-200 rounded-lg">
         <SearchInput
           value={search}
           onChange={(v) => { setSearch(v); setOffset(0); }}
@@ -291,8 +336,9 @@ export function CultesPage() {
         </div>
       </div>
 
-      <div className="bg-surface rounded-lg border border-accent-200 overflow-hidden">
+      <div className="bg-white rounded-lg border border-accent-200 overflow-hidden">
         <DataTable
+          trashType="CULTE"
           columns={columns}
           data={data?.getCultes.items ?? []}
           isLoading={loading}
@@ -303,6 +349,16 @@ export function CultesPage() {
           emptyMessage="Aucun culte trouvé."
         />
       </div>
+
+      <ConfirmModal
+        isOpen={!!toEnd}
+        title="Terminer le direct"
+        message={`Passer « ${toEnd?.titre} » en rediffusion maintenant ?`}
+        confirmLabel="Terminer le direct"
+        onConfirm={() => void handleTerminerDirect()}
+        onCancel={() => setToEnd(null)}
+        danger={false}
+      />
 
       <ConfirmModal
         isOpen={!!toDelete}
@@ -369,6 +425,21 @@ export function CultesPage() {
               </select>
             </div>
           </div>
+
+          {selectedStatut === 'EN_DIRECT' && (
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold text-accent-400 uppercase tracking-widest">
+                Fin prévue du direct (facultatif)
+              </label>
+              <input
+                type="datetime-local"
+                {...register('finDirectAt')}
+                className="w-full text-sm px-4 py-2.5 bg-accent-50 border border-accent-200 rounded-lg outline-none focus:border-primary-500 cursor-pointer transition-all"
+              />
+              <p className="text-xs text-accent-500">À cette heure, le culte passera automatiquement en rediffusion.</p>
+              {errors.finDirectAt && <p className="text-[10px] text-danger font-bold mt-1 uppercase">{errors.finDirectAt.message}</p>}
+            </div>
+          )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div className="space-y-1.5">

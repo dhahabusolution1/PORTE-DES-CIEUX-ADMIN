@@ -219,8 +219,9 @@ export function PlaylistsPage() {
         </Button>
       </div>
 
-      <div className="bg-surface rounded-lg border border-accent-200 overflow-hidden">
+      <div className="bg-white rounded-lg border border-accent-200 overflow-hidden">
         <DataTable
+          trashType="PLAYLIST"
           columns={columns}
           data={data?.getPlaylists.items ?? []}
           isLoading={loading}
@@ -235,7 +236,7 @@ export function PlaylistsPage() {
       <ConfirmModal
         isOpen={!!toDelete}
         title="Supprimer cette série"
-        message={`Voulez-vous supprimer la série « ${toDelete?.titre} » ? Cela ne supprimera pas les vidéos, mais elles ne seront plus regroupées.`}
+        message={`Placer la série « ${toDelete?.titre} » dans la corbeille ? Elle pourra être restaurée avec ses vidéos.`}
         confirmLabel="Supprimer"
         onConfirm={() => void handleSupprimer()}
         onCancel={() => setToDelete(null)}

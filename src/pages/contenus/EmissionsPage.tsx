@@ -144,18 +144,26 @@ export function EmissionsPage() {
           cloudinaryPublicId = uploaded.publicId;
         }
 
-        const input = {
-          ...values,
+        const variables: Record<string, unknown> = {
+          titre: values.titre,
+          description: values.description || null,
           date: new Date(values.date).toISOString(),
-          mediaUrl,
-          cloudinaryPublicId,
+          type: values.type,
+          lienYoutube: values.lienYoutube?.trim() || null,
         };
 
+        // Ne renseigner les champs média que si un nouveau fichier a été uploadé
+        // (évite d'effacer mediaUrl / cloudinaryPublicId à la modification)
+        if (mediaUrl && cloudinaryPublicId) {
+          variables.mediaUrl = mediaUrl;
+          variables.cloudinaryPublicId = cloudinaryPublicId;
+        }
+
         if (editing) {
-          await modifierEmission({ variables: { id: editing.id, input } });
+          await modifierEmission({ variables: { id: editing.id, ...variables } });
           toast.success('Émission modifiée');
         } else {
-          await creerEmission({ variables: { input } });
+          await creerEmission({ variables });
           toast.success('Émission créée');
         }
         closeForm();
@@ -276,7 +284,7 @@ export function EmissionsPage() {
         </Button>
       </div>
 
-      <div className="flex flex-wrap items-center gap-3 bg-surface p-3 border border-accent-200 rounded-lg">
+      <div className="flex flex-wrap items-center gap-3 bg-white p-3 border border-accent-200 rounded-lg">
         <SearchInput
           value={search}
           onChange={(v) => { setSearch(v); setOffset(0); }}
@@ -299,8 +307,9 @@ export function EmissionsPage() {
         </select>
       </div>
 
-      <div className="bg-surface rounded-lg border border-accent-200 overflow-hidden">
+      <div className="bg-white rounded-lg border border-accent-200 overflow-hidden">
         <DataTable
+          trashType="EMISSION"
           columns={columns}
           data={data?.getEmissions.items ?? []}
           isLoading={loading}

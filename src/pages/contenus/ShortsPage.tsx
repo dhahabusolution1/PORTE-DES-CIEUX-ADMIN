@@ -172,7 +172,7 @@ export function ShortsPage() {
             variant="danger" 
             size="sm" 
             iconOnly 
-            title="Supprimer définitivement"
+            title="Mettre à la corbeille"
             onClick={() => setToDelete(row.original)}
           >
             <Trash2 size={14} />
@@ -204,8 +204,9 @@ export function ShortsPage() {
         placeholder="Rechercher par titre ou description…"
       />
 
-      <div className="bg-surface rounded-lg border border-accent-200 overflow-hidden">
+      <div className="bg-white rounded-lg border border-accent-200 overflow-hidden">
         <DataTable 
+          trashType="SHORT"
           columns={columns} 
           data={data?.getShortVideos.items ?? []} 
           isLoading={loading}
@@ -220,7 +221,7 @@ export function ShortsPage() {
       <ConfirmModal
         isOpen={!!toDelete}
         title="Supprimer cette vidéo"
-        message={`Voulez-vous supprimer « ${toDelete?.titre} » ? Cette action supprimera définitivement la vidéo du serveur.`}
+        message={`Mettre « ${toDelete?.titre} » à la corbeille ? La vidéo sera conservée pour la restauration.`}
         confirmLabel="Supprimer"
         onConfirm={() => void handleSupprimer()}
         onCancel={() => setToDelete(null)}

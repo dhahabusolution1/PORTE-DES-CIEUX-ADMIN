@@ -169,7 +169,7 @@ export function EglisesPage() {
         </button>
       </div>
 
-      <DataTable columns={columns} data={eglises} isLoading={loading} />
+      <DataTable trashType="EGLISE" columns={columns} data={eglises} isLoading={loading} />
 
       <ConfirmModal
         isOpen={!!toDelete}

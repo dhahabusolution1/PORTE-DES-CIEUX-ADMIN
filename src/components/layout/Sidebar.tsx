@@ -25,6 +25,7 @@ import {
   LogOut,
   X,
   FileText,
+  Trash2,
 } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 
@@ -71,6 +72,8 @@ const CONFIGURATION: NavItem[] = [
   { to: '/configuration/dons',         label: 'Config Dons',     icon: <Gift className="w-4 h-4" /> },
   { to: '/configuration/whatsapp',     label: 'Config WhatsApp', icon: <MessageCircle className="w-4 h-4" /> },
   { to: '/configuration/notifications',label: 'Notifications Push', icon: <Bell className="w-4 h-4" /> },
+  { to: '/configuration/mobile-update', label: 'Mise à jour mobile', icon: <RefreshCw className="w-4 h-4" />, superAdminOnly: true },
+  { to: '/configuration/corbeille', label: 'Corbeille', icon: <Trash2 className="w-4 h-4" /> },
 ];
 
 function SidebarSection({ title, items, role }: { title: string; items: NavItem[]; role: string }) {

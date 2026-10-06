@@ -67,6 +67,7 @@ export const GET_SESSIONS = gql`
       dateDebut
       dateFin
       estActif
+      codeAcces
       createdAt
       updatedAt
     }

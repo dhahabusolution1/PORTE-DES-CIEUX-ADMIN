@@ -173,6 +173,15 @@ export function SessionsPage() {
       ),
     },
     {
+      accessorKey: 'codeAcces',
+      header: 'Code d\'accès',
+      cell: ({ row }) => (
+        <span className="font-mono text-xs font-black tracking-widest text-primary-700">
+          {row.original.codeAcces ?? '—'}
+        </span>
+      ),
+    },
+    {
       accessorKey: 'estActif',
       header: 'Statut',
       cell: ({ row }) => (
@@ -236,7 +245,7 @@ export function SessionsPage() {
         </Button>
       </div>
 
-      <div className="flex items-center gap-3 bg-surface p-3 border border-accent-200 rounded-lg">
+      <div className="flex items-center gap-3 bg-white p-3 border border-accent-200 rounded-lg">
         <label className="text-[10px] font-bold text-accent-400 uppercase tracking-widest ml-1 whitespace-nowrap">Filtrer par type :</label>
         <select
           value={filterType}
@@ -249,8 +258,9 @@ export function SessionsPage() {
         </select>
       </div>
 
-      <div className="bg-surface rounded-lg border border-accent-200 overflow-hidden">
+      <div className="bg-white rounded-lg border border-accent-200 overflow-hidden">
         <DataTable
+          trashType="SESSION"
           columns={columns}
           data={data?.getSessions ?? []}
           isLoading={loading}
@@ -261,7 +271,7 @@ export function SessionsPage() {
       <ConfirmModal
         isOpen={!!toDelete}
         title="Supprimer cette session"
-        message={`Voulez-vous supprimer la session « ${toDelete?.titre} » ? Toutes les inscriptions associées seront également supprimées.`}
+        message={`Mettre la session « ${toDelete?.titre} » à la corbeille ? Ses inscriptions seront conservées pour la restauration.`}
         confirmLabel="Supprimer"
         onConfirm={() => void handleSupprimer()}
         onCancel={() => setToDelete(null)}

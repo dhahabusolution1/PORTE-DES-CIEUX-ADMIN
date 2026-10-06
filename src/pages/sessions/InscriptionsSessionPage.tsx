@@ -7,7 +7,7 @@ import type { ColumnDef } from '@tanstack/react-table';
 import * as XLSX from 'xlsx';
 
 import { GET_INSCRIPTIONS, GET_SESSIONS } from '@/graphql/queries/sessions.queries';
-import { MODIFIER_STATUT_INSCRIPTION, PRE_GENERER_MATRICULE } from '@/graphql/mutations/sessions.mutations';
+import { MODIFIER_STATUT_INSCRIPTION, GENERER_CODE_ACCES } from '@/graphql/mutations/sessions.mutations';
 import { useDebounce } from '@/hooks/useDebounce';
 import { DataTable } from '@/components/ui/DataTable';
 import { Button } from '@/components/ui/Button';
@@ -106,14 +106,22 @@ function InscriptionDetailModal({
   onValidate: () => void;
   onRefuse: () => void;
 }) {
-  const isMembre = inscription.sessionFormulaire?.type === 'ENREGISTREMENT_MEMBRE';
+  const sessionType = inscription.sessionFormulaire?.type;
+  const ficheComplete =
+    sessionType === 'ENREGISTREMENT_MEMBRE' || sessionType === 'BAPTEME';
   const fullName = [inscription.nom, inscription.postnom, inscription.prenom].filter(Boolean).join(' ');
 
   return (
     <Modal
       isOpen
       onClose={onClose}
-      title={isMembre ? 'Fiche d\'identification membre' : 'Détail de l\'inscription'}
+      title={
+        sessionType === 'BAPTEME'
+          ? 'Fiche d\'inscription baptême'
+          : ficheComplete
+            ? 'Fiche d\'identification membre'
+            : 'Détail de l\'inscription'
+      }
       maxWidth="4xl"
       footer={(
         <>
@@ -148,7 +156,7 @@ function InscriptionDetailModal({
           </span>
         </div>
 
-        {isMembre ? (
+        {ficheComplete ? (
           <>
             <section>
               <h3 className="text-xs font-black text-primary-600 uppercase tracking-widest mb-4">
@@ -238,8 +246,8 @@ function InscriptionDetailModal({
   );
 }
 
-function buildExcelRows(inscriptions: Inscription[], isMembre: boolean) {
-  if (isMembre) {
+function buildExcelRows(inscriptions: Inscription[], ficheComplete: boolean) {
+  if (ficheComplete) {
     return inscriptions.map((i) => ({
       Matricule: i.matricule ?? '',
       'N° Carte': i.numeroCarteMembre ?? '',
@@ -302,30 +310,40 @@ export function InscriptionsSessionPage() {
     skip: !sessionId,
   });
 
-  const { data: sessionsData } = useQuery<{ getSessions: { id: string; titre: string; type: string }[] }>(
-    GET_SESSIONS,
-    { fetchPolicy: 'cache-first' },
-  );
+  const { data: sessionsData, refetch: refetchSessions } = useQuery<{
+    getSessions: { id: string; titre: string; type: string; codeAcces?: string | null }[];
+  }>(GET_SESSIONS, { fetchPolicy: 'cache-and-network' });
 
   const [modifierStatut] = useMutation(MODIFIER_STATUT_INSCRIPTION);
-  const [preGenerer] = useMutation(PRE_GENERER_MATRICULE);
+  const [genererCode] = useMutation(GENERER_CODE_ACCES);
 
   const inscriptions = data?.getInscriptions ?? [];
   const currentSession = sessionsData?.getSessions.find((s) => s.id === sessionId);
   const sessionType = inscriptions[0]?.sessionFormulaire?.type ?? currentSession?.type ?? 'BAPTEME';
+  /** Baptême et identification membre : fiche complète + code d'accès session. */
+  const ficheComplete =
+    sessionType === 'ENREGISTREMENT_MEMBRE' || sessionType === 'BAPTEME';
   const isMembre = sessionType === 'ENREGISTREMENT_MEMBRE';
   const sessionTitre = inscriptions[0]?.sessionFormulaire?.titre ?? currentSession?.titre;
+  const codeAcces = currentSession?.codeAcces ?? null;
 
-  const handlePreGenerer = async () => {
+  const handleGenererCode = async () => {
     if (!sessionId) return;
-    await run('Génération du numéro matricule à l\'avance…', async () => {
+    const regenerer = Boolean(codeAcces);
+    await run(regenerer ? 'Régénération du code d\'accès…' : 'Génération du code d\'accès…', async () => {
       try {
-        const result = await preGenerer({ variables: { sessionId } });
-        const matricule = (result.data as any)?.preGenererMatricule?.matricule;
-        toast.success(`Matricule généré avec succès : ${matricule}`, { duration: 6000 });
-        refetch();
+        const result = await genererCode({ variables: { sessionId } });
+        const code = (result.data as { genererCodeAcces?: { codeAcces?: string } } | undefined)
+          ?.genererCodeAcces?.codeAcces;
+        await refetchSessions();
+        toast.success(
+          regenerer
+            ? `Nouveau code d'accès : ${code}`
+            : `Code d'accès généré : ${code}`,
+          { duration: 8000 },
+        );
       } catch {
-        toast.error('Erreur lors de la pré-génération du matricule');
+        toast.error("Erreur lors de la génération du code d'accès");
       }
     });
   };
@@ -357,7 +375,7 @@ export function InscriptionsSessionPage() {
       toast.error('Aucune inscription à exporter');
       return;
     }
-    const rows = buildExcelRows(inscriptions, isMembre);
+    const rows = buildExcelRows(inscriptions, ficheComplete);
     const ws = XLSX.utils.json_to_sheet(rows);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Inscriptions');
@@ -372,20 +390,6 @@ export function InscriptionsSessionPage() {
         accessorKey: 'nom',
         header: 'Inscrit / Etat',
         cell: ({ row }) => {
-          const isPreGen = row.original.nom === 'PRE_GENERE';
-          if (isPreGen) {
-            return (
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center shrink-0">
-                  <User className="w-5 h-5 text-amber-600" />
-                </div>
-                <div>
-                  <div className="font-bold text-amber-700 italic">Pre-généré (Disponible)</div>
-                  <div className="text-xs text-accent-400">En attente d'utilisation mobile</div>
-                </div>
-              </div>
-            );
-          }
           return (
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-accent-100 flex items-center justify-center shrink-0">
@@ -403,7 +407,7 @@ export function InscriptionsSessionPage() {
       },
     ];
 
-    if (isMembre) {
+    if (ficheComplete) {
       base.push(
         {
           accessorKey: 'matricule',
@@ -452,7 +456,7 @@ export function InscriptionsSessionPage() {
               onClick={() => setSelected(row.original)}
             >
               <Eye size={14} className="mr-1.5" />
-              {isMembre ? 'Fiche' : 'Détail'}
+              {ficheComplete ? 'Fiche' : 'Détail'}
             </Button>
             {row.original.statut === 'EN_ATTENTE' && row.original.nom !== 'PRE_GENERE' && (
               <>
@@ -480,7 +484,7 @@ export function InscriptionsSessionPage() {
     );
 
     return base;
-  }, [isMembre]);
+  }, [ficheComplete]);
 
   return (
     <div className="space-y-6">
@@ -491,17 +495,31 @@ export function InscriptionsSessionPage() {
           </Button>
           <div>
             <h1 className="text-2xl font-black text-accent-900 tracking-tight">
-              {isMembre ? 'Fiches d\'identification' : 'Inscrits à la session'}
+              {isMembre
+                ? 'Fiches d\'identification'
+                : sessionType === 'BAPTEME'
+                  ? 'Inscriptions baptême'
+                  : 'Inscrits à la session'}
             </h1>
             <p className="text-sm text-accent-400 font-medium italic">
               {sessionTitre ?? 'Gérez les inscriptions soumises par les fidèles'}
             </p>
+            {ficheComplete && (
+              <p className="text-sm text-accent-700 mt-1">
+                Code d&apos;accès&nbsp;:{' '}
+                {codeAcces ? (
+                  <span className="font-mono font-black tracking-widest text-primary-700">{codeAcces}</span>
+                ) : (
+                  <span className="italic text-accent-400">non défini — générez-en un</span>
+                )}
+              </p>
+            )}
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          {isMembre && (
-            <Button variant="primary" onClick={handlePreGenerer}>
-              Pré-générer un Matricule
+          {ficheComplete && (
+            <Button variant="primary" onClick={handleGenererCode}>
+              {codeAcces ? 'Régénérer le code' : 'Générer le code d\'accès'}
             </Button>
           )}
           {inscriptions.length > 0 && (
@@ -528,7 +546,7 @@ export function InscriptionsSessionPage() {
         )}
       </div>
 
-      <div className="bg-surface rounded-lg border border-accent-200 overflow-hidden">
+      <div className="bg-white rounded-lg border border-accent-200 overflow-hidden">
         <DataTable
           columns={columns}
           data={inscriptions}

@@ -13,6 +13,7 @@ import { DataTable } from '@/components/ui/DataTable';
 import { ConfirmModal } from '@/components/ui/ConfirmModal';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { useProcessing } from '@/hooks/useProcessing';
+import { useAuthStore } from '@/stores/authStore';
 import type { User as UserType, Role } from '@/types';
 
 const ROLES: Role[] = ['SUPER_ADMIN', 'ADMIN', 'FIDELE'];
@@ -223,6 +224,8 @@ export function UtilisateursPage() {
       </div>
 
       <DataTable
+        trashType="UTILISATEUR"
+        canSelectRow={(row) => row.id !== useAuthStore.getState().user?.id}
         columns={columns}
         data={users}
         isLoading={loading}
@@ -235,7 +238,7 @@ export function UtilisateursPage() {
       <ConfirmModal
         isOpen={!!toDelete}
         title="Supprimer cet utilisateur"
-        message={`Voulez-vous supprimer ${[toDelete?.nom, toDelete?.postnom].filter(Boolean).join(' ')} ? Cette action est irréversible.`}
+        message={`Mettre ${[toDelete?.nom, toDelete?.postnom].filter(Boolean).join(' ')} à la corbeille ? Ce compte pourra être restauré.`}
         confirmLabel="Supprimer cet utilisateur"
         cancelLabel="Annuler"
         danger

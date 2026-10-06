@@ -175,6 +175,7 @@ export const GET_CULTES = gql`
         lienYoutube
         miniatureUrl
         statut
+        finDirectAt
         createdAt
       }
       totalCount

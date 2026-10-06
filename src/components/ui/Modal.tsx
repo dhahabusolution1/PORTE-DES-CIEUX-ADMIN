@@ -37,7 +37,7 @@ export function Modal({
         className={`bg-surface rounded-md w-full ${maxWidthClasses[maxWidth]} flex flex-col max-h-[90vh] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200`}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-accent-100 shrink-0 bg-surface">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-accent-100 shrink-0 bg-white">
           <h3 className="text-sm font-bold text-accent-900 uppercase tracking-widest">
             {title}
           </h3>

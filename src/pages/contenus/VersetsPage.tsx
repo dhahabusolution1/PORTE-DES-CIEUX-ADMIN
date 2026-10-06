@@ -158,12 +158,12 @@ export function VersetsPage() {
       header: 'Référence & Version',
       cell: ({ row }) => (
         <div className="flex items-center gap-3">
-          <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${row.original.estActif ? 'bg-emerald-100 text-emerald-600' : 'bg-primary-50 text-primary-500'}`}>
+          <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${row.original.estActif ? 'bg-emerald-100 text-emerald-600' : 'bg-accent-100 text-accent-400'}`}>
             <BookOpen size={16} />
           </div>
           <div>
             <div className="font-black text-accent-900 tracking-tight">{row.original.reference}</div>
-            <div className="text-[10px] font-bold text-accent-500 uppercase tracking-widest">
+            <div className="text-[10px] font-bold text-accent-400 uppercase tracking-widest">
               {row.original.versionBiblique}
             </div>
           </div>
@@ -195,15 +195,12 @@ export function VersetsPage() {
       header: 'État',
       cell: ({ row }) => (
         row.original.estActif ? (
-          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 text-emerald-700 rounded-full border border-emerald-200">
+          <div className="inline-flex items-center gap-1.5 px-2 py-1 bg-emerald-50 text-emerald-600 rounded-full border border-emerald-100">
             <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
             <span className="text-[10px] font-bold uppercase tracking-widest">Actif</span>
           </div>
         ) : (
-          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-accent-100 text-accent-600 rounded-full border border-accent-200">
-            <div className="w-1.5 h-1.5 rounded-full bg-accent-400" />
-            <span className="text-[10px] font-bold uppercase tracking-widest">Inactif</span>
-          </div>
+          <span className="text-[10px] font-bold text-accent-300 uppercase tracking-widest">Inactif</span>
         )
       ),
     },
@@ -251,7 +248,7 @@ export function VersetsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-black text-accent-900 tracking-tight">Versets du Jour</h1>
-          <p className="text-sm text-accent-500 font-medium">Gérez la parole quotidienne diffusée sur tous les supports</p>
+          <p className="text-sm text-accent-400 font-medium italic">Gérez la parole quotidienne diffusée sur tous les supports</p>
         </div>
         <Button 
           variant="primary" 
@@ -268,8 +265,9 @@ export function VersetsPage() {
         placeholder="Rechercher par référence ou texte…"
       />
 
-      <div className="bg-surface rounded-lg border border-accent-200 overflow-hidden">
+      <div className="bg-white rounded-lg border border-accent-200 overflow-hidden">
         <DataTable
+          trashType="VERSET"
           columns={columns}
           data={data?.getVersets.items ?? []}
           isLoading={loading}
@@ -284,7 +282,7 @@ export function VersetsPage() {
       <ConfirmModal
         isOpen={!!toDelete}
         title="Supprimer ce verset"
-        message={`Voulez-vous supprimer le verset « ${toDelete?.reference} » ? Cette action est définitive.`}
+        message={`Placer le verset « ${toDelete?.reference} » dans la corbeille ? Vous pourrez le restaurer.`}
         confirmLabel="Supprimer"
         onConfirm={() => void handleSupprimer()}
         onCancel={() => setToDelete(null)}

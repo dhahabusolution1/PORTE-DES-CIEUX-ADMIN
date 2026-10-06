@@ -144,30 +144,25 @@ export function EvenementsPage() {
   };
 
   const onSubmit = async (values: FormValues) => {
-    await run('Enregistrement de l\'événement...', async () => {
-      try {
-        const input = {
-          ...values,
-          imageUrl: imageUrl || undefined,
-          dateDebut: new Date(values.dateDebut).toISOString(),
-          dateFin: values.dateFin ? new Date(values.dateFin).toISOString() : undefined,
-        };
-
-        if (editing) {
-          await modifierEvenement({ variables: { id: editing.id, input } });
-          toast.success('Événement modifié');
-        } else {
-          await creerEvenement({ variables: { input } });
-          toast.success('Événement créé');
-        }
-        closeForm();
-        refetch();
-      } catch {
-        toast.error('Erreur lors de l\'enregistrement');
+    const result = await run("Enregistrement de l'événement...", async () => {
+      const input = {
+        ...values,
+        imageUrl: imageUrl || undefined,
+        dateDebut: new Date(values.dateDebut).toISOString(),
+        dateFin: values.dateFin ? new Date(values.dateFin).toISOString() : undefined,
+      };
+      if (editing) {
+        await modifierEvenement({ variables: { id: editing.id, input } });
+      } else {
+        await creerEvenement({ variables: { input } });
       }
-    });
+      return true;
+    }, { successMessage: editing ? 'Événement modifié' : 'Événement créé' });
+    if (result) {
+      closeForm();
+      void refetch();
+    }
   };
-
   const handleSupprimer = async () => {
     if (!toDelete) return;
     await run(async () => {
@@ -276,7 +271,7 @@ export function EvenementsPage() {
         </Button>
       </div>
 
-      <div className="flex items-center gap-3 bg-surface p-3 border border-accent-200 rounded-lg">
+      <div className="flex items-center gap-3 bg-white p-3 border border-accent-200 rounded-lg">
         <SearchInput
           value={search}
           onChange={(v) => { setSearch(v); setOffset(0); }}
@@ -298,8 +293,9 @@ export function EvenementsPage() {
         </select>
       </div>
 
-      <div className="bg-surface rounded-lg border border-accent-200 overflow-hidden">
+      <div className="bg-white rounded-lg border border-accent-200 overflow-hidden">
         <DataTable
+          trashType="EVENEMENT"
           columns={columns}
           data={data?.getEvenements.items ?? []}
           isLoading={loading}
@@ -314,7 +310,7 @@ export function EvenementsPage() {
       <ConfirmModal
         isOpen={!!toDelete}
         title="Supprimer cet événement"
-        message={`Voulez-vous supprimer l'événement « ${toDelete?.titre} » ? Cette action est irréversible.`}
+        message={`Mettre l'événement « ${toDelete?.titre} » à la corbeille ? Il pourra être restauré.`}
         confirmLabel="Supprimer"
         onConfirm={() => void handleSupprimer()}
         onCancel={() => setToDelete(null)}

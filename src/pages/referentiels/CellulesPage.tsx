@@ -198,7 +198,7 @@ export function CellulesPage() {
         </select>
       </div>
 
-      <DataTable columns={columns} data={cellules} isLoading={loading} />
+      <DataTable trashType="CELLULE" columns={columns} data={cellules} isLoading={loading} />
 
       <ConfirmModal
         isOpen={!!toDelete}

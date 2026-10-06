@@ -175,26 +175,64 @@ export const SUPPRIMER_SERMON = gql`
 `;
 
 export const CREER_EMISSION = gql`
-  mutation CreerEmission($titre: String!, $description: String, $date: DateTime!, $lienYoutube: String!, $type: TypeEmission!) {
-    creerEmission(titre: $titre, description: $description, date: $date, lienYoutube: $lienYoutube, type: $type) {
+  mutation CreerEmission(
+    $titre: String!
+    $description: String
+    $date: DateTime!
+    $lienYoutube: String
+    $mediaUrl: String
+    $cloudinaryPublicId: String
+    $type: TypeEmission!
+  ) {
+    creerEmission(
+      titre: $titre
+      description: $description
+      date: $date
+      lienYoutube: $lienYoutube
+      mediaUrl: $mediaUrl
+      cloudinaryPublicId: $cloudinaryPublicId
+      type: $type
+    ) {
       id
       titre
       type
       date
       lienYoutube
+      mediaUrl
+      miniatureUrl
     }
   }
 `;
 
 export const MODIFIER_EMISSION = gql`
-  mutation ModifierEmission($id: ID!, $titre: String, $description: String, $date: DateTime, $lienYoutube: String, $type: TypeEmission) {
-    modifierEmission(id: $id, titre: $titre, description: $description, date: $date, lienYoutube: $lienYoutube, type: $type) {
+  mutation ModifierEmission(
+    $id: ID!
+    $titre: String
+    $description: String
+    $date: DateTime
+    $lienYoutube: String
+    $mediaUrl: String
+    $cloudinaryPublicId: String
+    $type: TypeEmission
+  ) {
+    modifierEmission(
+      id: $id
+      titre: $titre
+      description: $description
+      date: $date
+      lienYoutube: $lienYoutube
+      mediaUrl: $mediaUrl
+      cloudinaryPublicId: $cloudinaryPublicId
+      type: $type
+    ) {
       id
       titre
       type
       date
       lienYoutube
+      mediaUrl
       description
+      miniatureUrl
     }
   }
 `;
@@ -206,25 +244,27 @@ export const SUPPRIMER_EMISSION = gql`
 `;
 
 export const CREER_CULTE = gql`
-  mutation CreerCulte($titre: String!, $description: String, $type: TypeCulte!, $date: DateTime!, $lienYoutube: String) {
-    creerCulte(titre: $titre, description: $description, type: $type, date: $date, lienYoutube: $lienYoutube) {
+  mutation CreerCulte($titre: String!, $description: String, $type: TypeCulte!, $date: DateTime!, $lienYoutube: String, $statut: StatutCulte, $finDirectAt: DateTime) {
+    creerCulte(titre: $titre, description: $description, type: $type, date: $date, lienYoutube: $lienYoutube, statut: $statut, finDirectAt: $finDirectAt) {
       id
       titre
       type
       date
       statut
+      finDirectAt
     }
   }
 `;
 
 export const MODIFIER_CULTE = gql`
-  mutation ModifierCulte($id: ID!, $titre: String, $description: String, $type: TypeCulte, $date: DateTime, $lienYoutube: String, $statut: StatutCulte) {
-    modifierCulte(id: $id, titre: $titre, description: $description, type: $type, date: $date, lienYoutube: $lienYoutube, statut: $statut) {
+  mutation ModifierCulte($id: ID!, $titre: String, $description: String, $type: TypeCulte, $date: DateTime, $lienYoutube: String, $statut: StatutCulte, $finDirectAt: DateTime) {
+    modifierCulte(id: $id, titre: $titre, description: $description, type: $type, date: $date, lienYoutube: $lienYoutube, statut: $statut, finDirectAt: $finDirectAt) {
       id
       titre
       type
       date
       statut
+      finDirectAt
       lienYoutube
       description
     }

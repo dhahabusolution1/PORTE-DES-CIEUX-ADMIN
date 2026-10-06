@@ -27,6 +27,8 @@ import { ConfigAccueilPage } from '@/pages/configuration/ConfigAccueilPage';
 import { ConfigDonsPage } from '@/pages/configuration/ConfigDonsPage';
 import { ConfigWhatsAppPage } from '@/pages/configuration/ConfigWhatsAppPage';
 import { NotificationsPage } from '@/pages/configuration/NotificationsPage';
+import { MobileUpdatePage } from '@/pages/configuration/MobileUpdatePage';
+import { CorbeillePage } from '@/pages/configuration/CorbeillePage';
 import { SessionsPage } from '@/pages/sessions/SessionsPage';
 import { InscriptionsSessionPage } from '@/pages/sessions/InscriptionsSessionPage';
 
@@ -83,6 +85,11 @@ const router = createBrowserRouter([
           { path: 'configuration/dons',           element: <ConfigDonsPage /> },
           { path: 'configuration/whatsapp',       element: <ConfigWhatsAppPage /> },
           { path: 'configuration/notifications',  element: <NotificationsPage /> },
+          { path: 'configuration/corbeille', element: <CorbeillePage /> },
+          {
+            element: <ProtectedRoute requiredRole="SUPER_ADMIN" />,
+            children: [{ path: 'configuration/mobile-update', element: <MobileUpdatePage /> }],
+          },
         ],
       },
     ],

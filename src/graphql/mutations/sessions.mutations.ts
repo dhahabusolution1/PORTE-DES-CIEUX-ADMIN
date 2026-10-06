@@ -9,6 +9,7 @@ export const CREER_SESSION = gql`
       dateDebut
       dateFin
       estActif
+      codeAcces
     }
   }
 `;
@@ -22,6 +23,7 @@ export const MODIFIER_SESSION = gql`
       dateDebut
       dateFin
       estActif
+      codeAcces
     }
   }
 `;
@@ -52,13 +54,12 @@ export const MODIFIER_STATUT_INSCRIPTION = gql`
   }
 `;
 
-export const PRE_GENERER_MATRICULE = gql`
-  mutation PreGenererMatricule($sessionId: ID!) {
-    preGenererMatricule(sessionId: $sessionId) {
+export const GENERER_CODE_ACCES = gql`
+  mutation GenererCodeAcces($sessionId: ID!) {
+    genererCodeAcces(sessionId: $sessionId) {
       id
-      matricule
-      numeroCarteMembre
-      statut
+      codeAcces
+      titre
     }
   }
 `;

@@ -29,9 +29,9 @@ const LIMIT = 10;
 
 const STATUT_OPTIONS = [
   { value: 'BROUILLON', label: 'Brouillon' },
-  { value: 'PUBLIE', label: 'Publi�' },
-  { value: 'ANNULE', label: 'Annul�' },
-  { value: 'TERMINE', label: 'Termin�' },
+  { value: 'PUBLIE', label: 'Publié' },
+  { value: 'ANNULE', label: 'Annulé' },
+  { value: 'TERMINE', label: 'Terminé' },
 ];
 
 const programmeSchema = z.object({
@@ -134,37 +134,32 @@ export function ProgrammesCultePage() {
   };
 
   const onSubmit = async (values: ProgrammeForm) => {
-    await run('Enregistrement du programme...', async () => {
-      try {
-        const input = {
-          ...values,
-          type: 'PROGRAMME_CULTE',
-          imageUrl: imageUrl || undefined,
-          dateDebut: new Date(values.dateDebut).toISOString(),
-          dateFin: values.dateFin ? new Date(values.dateFin).toISOString() : undefined,
-        };
-
-        if (editing) {
-          await modifierProgramme({ variables: { id: editing.id, input } });
-          toast.success('Programme modifi�');
-        } else {
-          await creerProgramme({ variables: { input } });
-          toast.success('Programme cr��');
-        }
-        closeForm();
-        refetch();
-      } catch {
-        toast.error('Erreur lors de l\'enregistrement');
+    const result = await run('Enregistrement du programme...', async () => {
+      const input = {
+        ...values,
+        type: 'PROGRAMME_CULTE',
+        imageUrl: imageUrl || undefined,
+        dateDebut: new Date(values.dateDebut).toISOString(),
+        dateFin: values.dateFin ? new Date(values.dateFin).toISOString() : undefined,
+      };
+      if (editing) {
+        await modifierProgramme({ variables: { id: editing.id, input } });
+      } else {
+        await creerProgramme({ variables: { input } });
       }
-    });
+      return true;
+    }, { successMessage: editing ? 'Programme modifié' : 'Programme créé' });
+    if (result) {
+      closeForm();
+      void refetch();
+    }
   };
-
   const handleSupprimer = async () => {
     if (!toDelete) return;
     await run(async () => {
       try {
         await supprimerProgramme({ variables: { id: toDelete.id } });
-        toast.success('Programme supprim�');
+        toast.success('Programme placé dans la corbeille');
         setToDelete(null);
         refetch();
       } catch {
@@ -211,7 +206,7 @@ export function ProgrammesCultePage() {
           </div>
           <div className="flex items-center gap-1.5 text-[10px] text-accent-400 font-medium uppercase tracking-tight">
             <Clock size={10} />
-            {row.original.heure || 'Heure non pr�cis�e'}
+            {row.original.heure || 'Heure non précisée'}
           </div>
         </div>
       ),
@@ -254,7 +249,7 @@ export function ProgrammesCultePage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-black text-accent-900 tracking-tight">Programmes de Culte</h1>
-          <p className="text-sm text-accent-400 font-medium italic">G�rez la diffusion et la planification de vos cultes en ligne</p>
+          <p className="text-sm text-accent-400 font-medium italic">Gérez la diffusion et la planification de vos cultes en ligne</p>
         </div>
         <Button 
           variant="dark" 
@@ -268,11 +263,11 @@ export function ProgrammesCultePage() {
       <SearchInput
         value={search}
         onChange={(v) => { setSearch(v); setOffset(0); }}
-        placeholder="Rechercher par titre, lieu, organisateur�"
+        placeholder="Rechercher par titre, lieu, organisateur…"
       />
 
       <div className="bg-surface rounded-lg border border-accent-200 overflow-hidden">
-        <DataTable
+        <DataTable trashType="EVENEMENT"
           columns={columns}
           data={data?.getEvenements.items ?? []}
           isLoading={loading}
@@ -280,14 +275,14 @@ export function ProgrammesCultePage() {
           offset={offset}
           total={data?.getEvenements.totalCount ?? 0}
           onPageChange={setOffset}
-          emptyMessage="Aucun programme de culte planifi�."
+          emptyMessage="Aucun programme de culte planifié."
         />
       </div>
 
       <ConfirmModal
         isOpen={!!toDelete}
         title="Supprimer ce programme"
-        message={`Voulez-vous supprimer le programme � ${toDelete?.titre} � ? Cette action est irr�versible.`}
+        message={`Mettre le programme « ${toDelete?.titre} » à la corbeille ? Il pourra être restauré.`}
         confirmLabel="Supprimer"
         onConfirm={() => void handleSupprimer()}
         onCancel={() => setToDelete(null)}
@@ -309,7 +304,7 @@ export function ProgrammesCultePage() {
               onClick={handleSubmit(onSubmit)} 
               isLoading={isSubmitting}
             >
-              {editing ? 'Enregistrer les modifications' : 'Cr�er le programme'}
+              {editing ? 'Enregistrer les modifications' : 'Créer le programme'}
             </Button>
           </>
         )}
@@ -319,7 +314,7 @@ export function ProgrammesCultePage() {
             <label className="text-[10px] font-bold text-accent-400 uppercase tracking-widest">Titre du culte <span className="text-danger">*</span></label>
             <input
               {...register('titre')}
-              placeholder="Ex: Culte de Dominical - Th�me: La puissance de la foi"
+              placeholder="Ex : Culte dominical, thème : La puissance de la foi"
               className="w-full text-sm px-4 py-2.5 bg-accent-50 border border-accent-200 rounded-lg outline-none focus:border-primary-500 transition-all font-sans"
             />
             {errors.titre && <p className="text-[10px] text-danger font-bold mt-1 uppercase">{errors.titre.message}</p>}
@@ -339,7 +334,7 @@ export function ProgrammesCultePage() {
             </div>
             <div className="space-y-1.5">
               <label className="text-[10px] font-bold text-accent-400 uppercase tracking-widest flex items-center gap-1.5">
-                <Clock size={10} /> Heure de d�but
+                <Clock size={10} /> Heure de début
               </label>
               <input
                 type="time"
@@ -385,11 +380,11 @@ export function ProgrammesCultePage() {
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-[10px] font-bold text-accent-400 uppercase tracking-widest">Description / D�tails</label>
+            <label className="text-[10px] font-bold text-accent-400 uppercase tracking-widest">Description / Détails</label>
             <textarea
               {...register('description')}
               rows={3}
-              placeholder="Orateur, programme d�taill�..."
+              placeholder="Orateur, programme détaillé…"
               className="w-full text-sm px-4 py-2.5 bg-accent-50 border border-accent-200 rounded-lg outline-none focus:border-primary-500 resize-none transition-all font-sans"
             />
           </div>
@@ -404,8 +399,8 @@ export function ProgrammesCultePage() {
                 onChange={setImageUrl}
               />
               <div className="space-y-1.5 text-[10px] text-accent-500 italic">
-                <p>L'image sera utilis�e comme miniature sur l'application mobile.</p>
-                <p className="mt-2 text-accent-400">Si non pr�cis�e, l'ic�ne par d�faut sera utilis�e.</p>
+                <p>L'image sera utilisée comme miniature sur l'application mobile.</p>
+                <p className="mt-2 text-accent-400">Si non précisée, l'icône par défaut sera utilisée.</p>
               </div>
             </div>
           </div>

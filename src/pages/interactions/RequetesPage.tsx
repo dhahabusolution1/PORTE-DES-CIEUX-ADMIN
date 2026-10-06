@@ -1,12 +1,12 @@
 import { useState, useMemo } from 'react';
 import { useQuery, useMutation } from '@apollo/client/react';
-import { ChevronDown, Eye, X, MessageSquare, Download } from 'lucide-react';
+import { ChevronDown, Eye, X, MessageSquare, Download, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import type { ColumnDef, RowSelectionState } from '@tanstack/react-table';
 import * as XLSX from 'xlsx';
 
 import { GET_REQUETES, GET_REQUETE_BY_ID } from '@/graphql/queries/interactions.queries';
-import { UPDATE_STATUT_REQUETE, REPONDRE_REQUETE } from '@/graphql/mutations/interactions.mutations';
+import { UPDATE_STATUT_REQUETE, REPONDRE_REQUETE, SUPPRIMER_REQUETE } from '@/graphql/mutations/interactions.mutations';
 import { DataTable } from '@/components/ui/DataTable';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { ConfirmModal } from '@/components/ui/ConfirmModal';
@@ -18,6 +18,11 @@ import { formatDate } from '@/utils/formatDate';
 import type { Requete, StatutRequete, TypeDemandePriere, TypeRequete } from '@/types';
 
 const LIMIT = 20;
+
+/** Suppression proposée dès que la demande n'est plus en simple attente (suivi / nettoyage). */
+function peutSupprimerRequete(statut: StatutRequete): boolean {
+  return statut !== 'EN_ATTENTE';
+}
 
 const STATUTS_BY_TYPE: Record<TypeRequete, { value: StatutRequete; label: string }[]> = {
   PRIERE: [
@@ -260,6 +265,7 @@ export function RequetesPage({ type, title, description }: RequetesPageProps) {
   const [filterTypePriere, setFilterTypePriere] = useState('');
   const [detailId, setDetailId] = useState<string | null>(null);
   const [confirmAction, setConfirmAction] = useState<{ id: string; statut: StatutRequete; label: string } | null>(null);
+  const [toDelete, setToDelete] = useState<Requete | null>(null);
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const { run } = useProcessing();
 
@@ -275,6 +281,7 @@ export function RequetesPage({ type, title, description }: RequetesPageProps) {
   });
 
   const [updateStatut] = useMutation(UPDATE_STATUT_REQUETE);
+  const [supprimerRequete] = useMutation(SUPPRIMER_REQUETE);
 
   const requetes = useMemo(() => data?.getRequetes.items ?? [], [data]);
   const total = data?.getRequetes.pagination.total ?? 0;
@@ -294,13 +301,28 @@ export function RequetesPage({ type, title, description }: RequetesPageProps) {
     });
   };
 
+  const confirmDelete = async () => {
+    if (!toDelete) return;
+    await run('Suppression de la demande…', async () => {
+      try {
+        await supprimerRequete({ variables: { id: toDelete.id } });
+        toast.success('Demande supprimée');
+        setToDelete(null);
+        if (detailId === toDelete.id) setDetailId(null);
+        void refetch();
+      } catch {
+        toast.error('Erreur lors de la suppression');
+      }
+    });
+  };
+
   const exportExcel = () => {
-    const selectedIndexes = Object.keys(rowSelection).map(Number);
-    if (selectedIndexes.length === 0) {
+    const selectedIds = new Set(Object.keys(rowSelection).filter((id) => rowSelection[id]));
+    if (selectedIds.size === 0) {
       toast.error('Veuillez sélectionner au moins une ligne à exporter.');
       return;
     }
-    const selectedRows = selectedIndexes.map(idx => requetes[idx]).filter(Boolean);
+    const selectedRows = requetes.filter((requete) => selectedIds.has(requete.id));
 
     const exportData = selectedRows.map(r => {
       const nom = r.user ? [r.user.prenom, r.user.nom].filter(Boolean).join(' ') : [r.prenomVisiteur, r.nomVisiteur].filter(Boolean).join(' ');
@@ -343,6 +365,7 @@ export function RequetesPage({ type, title, description }: RequetesPageProps) {
         <input
           type="checkbox"
           checked={row.getIsSelected()}
+          disabled={!row.getCanSelect()}
           onChange={row.getToggleSelectedHandler()}
           className="cursor-pointer"
         />
@@ -440,6 +463,17 @@ export function RequetesPage({ type, title, description }: RequetesPageProps) {
                 WhatsApp
               </a>
             )}
+            {peutSupprimerRequete(row.original.statut) && (
+              <Button
+                variant="danger"
+                size="sm"
+                iconOnly
+                title="Supprimer"
+                onClick={() => setToDelete(row.original)}
+              >
+                <Trash2 size={14} />
+              </Button>
+            )}
           </div>
         );
       },
@@ -491,6 +525,8 @@ export function RequetesPage({ type, title, description }: RequetesPageProps) {
       </div>
 
       <DataTable
+        trashType="REQUETE"
+        canSelectRow={(row) => peutSupprimerRequete(row.statut)}
         columns={columns}
         data={requetes}
         isLoading={loading}
@@ -518,6 +554,16 @@ export function RequetesPage({ type, title, description }: RequetesPageProps) {
         cancelLabel="Annuler"
         onConfirm={() => void confirmUpdate()}
         onCancel={() => setConfirmAction(null)}
+      />
+
+      <ConfirmModal
+        isOpen={!!toDelete}
+        title="Supprimer cette demande"
+        message="Mettre cette demande à la corbeille ? Elle pourra être restaurée."
+        confirmLabel="Supprimer"
+        danger
+        onConfirm={() => void confirmDelete()}
+        onCancel={() => setToDelete(null)}
       />
     </div>
   );
